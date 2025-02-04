@@ -1,18 +1,22 @@
----
+
 apiVersion: apps/v1
-kind: Deployment  
+kind: Deployment
 metadata:
-  name: mysql-db
+  name: database-deployment
   labels:
-    app: mysql-db
+    app: database-bank
 spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: database-bank
   template:
     metadata:
       labels:
-        app: mysql-db
+        app: database-bank
     spec:
       containers:
-        - name: mysql
+        - name: database-container
           image: mysql
           ports:
             - containerPort: 3306
@@ -21,7 +25,3 @@ spec:
               value: Test@123
             - name: MYSQL_DATABASE
               value: bankappdb
-  replicas: 1
-  selector:
-    matchLabels:
-      app: mysql-db

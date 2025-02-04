@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: frontend-deployment
+  labels:
+    app: frontend-bank
+spec:
+  template:
+    metadata:
+      labels:
+        app: frontend-bank
+    spec:
+      containers:
+        - name: frontend-bank-cont
+          image: sandhyareddy2713/bankapp-image
+          ports:
+            - containerPort: 8080
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-bank
