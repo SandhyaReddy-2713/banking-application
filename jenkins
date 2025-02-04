@@ -1,0 +1,83 @@
+pipeline {
+    agent any
+
+    environment {
+        SCANNER_HOME = tool 'sonarqube-scanner'
+    }
+
+    stages {
+        stage('clean workspace') {
+            steps {
+                cleanWs ()
+            }
+        }
+        stage('git-checkout') {
+            steps {
+                git 'https://github.com/SandhyaReddy-2713/bank-application.git'
+            }
+        }
+        stage('compile') {
+            steps {
+                sh 'mvn clean install -DskipTests'
+            }
+        }
+        stage('trivy-scan') {
+            steps {
+                sh 'trivy fs -f json -o files-trivy-scan.json .'
+            }
+        }
+        stage('sonarqube-scan') {
+            steps {
+                withSonarQubeEnv('sonarqube-server') {
+               sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=bank-application \
+               -Dsonar.java.binaries=. \
+               -Dsonar.projectKey=bank-application'''
+              }
+            }
+        }
+        stage('artifactory-nexus') {
+            steps {
+                withMaven(
+                    globalMavenSettingsConfig: 'maven.settings',openjdk: ",maven:",mavenSettingsConfig:",traceability:true"
+                ) {
+                    sh 'mvn clean deploy -DskipTests'
+                }
+            }
+        }
+        stage('docker-image') {
+            steps {
+                sh 'docker build -t sandhyareddy2713/bank-image .'
+            }
+        }
+        stage('trivy-image-scan') {
+            steps {
+                sh 'trivy -f table -o image-scan.html bank-image '
+            }
+        }
+        stage('docker-push') {
+            steps {
+                script {
+                     withDockerRegistry('dockerhub-credentials', toolName: 'docker') {
+                    sh 'docker push sandhyareddy2713/bank-image'
+                  }
+                }
+            }
+        }
+        stage ('install mysql') {
+            steps {
+                script {
+                    sh 'docker run --rm -d --name mysql -e MYSQL_ROOT_PASSWORD=Test@123 -e MYSQL_DATABASE=bankappdb -p 3306:3306 mysql'
+                    echo "stage to hold foe 30 sec"
+                    sleep time: 30, unit: 'seconds'
+                }
+            }
+        }
+        stage ('run-application') {
+            steps {
+                script {
+                    sh 'docker run --rm -itd --name bank-application --link mysql:mysql -p 8085:8080 sandhyareddy2713/bank-image'
+                }
+            }
+        }
+    }
+ }
