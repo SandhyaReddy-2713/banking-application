@@ -72,13 +72,32 @@ pipeline {
             when { expression { return params.demo == 'create' } }
             steps {
                 script {
-                     withDockerRegistry('dockerhub-credentials', toolName: 'docker') {
+                     withDockerRegistry(credentialsId:'dockerhub-credentials', toolName: 'docker') {
                     sh 'docker push sandhyareddy2713/bank-image:${BUILD_NUMBER}'
                   }
                 }
             }
         }
-
+        stage('modify manifestfiles') {
+            when { expression { return params.demo == 'create' } }
+            steps {
+                def DOCKER_IMAGE = "sandhyareddy2713/bank-image:${BUILD_NUMBER}"
+                def DEPLOYMENT_FILE = "kubernetes/frontend-deployment.yaml"
+                sh"""
+                sed -i 's | image: sandhyareddy2713/bank-image..* | image: ${DOCKER_IMAGE} | g' ${DEPLOYMENT_FILE}
+                """
+                withCredentials([string(credentialsId: 'github-cred',variable: 'GITHUB_CRED')]) {
+                    sh """
+                    git config --global user.name "sandhyareddy"
+                    git config --global user.email "sandhyareddy@gmail.com"
+                    git add ${DEPLYMENT_FILE}
+                    git commit -m "Updated deployment image to ${DOCKER_IMAGE}"
+                    git push https://${GITHUB_CRED}@github.com/SandhyaReddy-2713/banking-application.git
+                    HEAD:master
+                    """
+                }
+            }
+        }
 
 
         stage ('install mysql') {
